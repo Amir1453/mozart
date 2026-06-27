@@ -11,8 +11,6 @@ use syn::{
     visit_mut::VisitMut,
 };
 
-use crate::error_msg::UNEXPECTED_TOKENS_AFTER_FUNCTION;
-
 struct MozartInput {
     function: syn::ItemFn,
     sections: Vec<Section>,
@@ -81,10 +79,15 @@ impl Parse for MozartInput {
         let mapping = VariantMapping::build(&function)?;
 
         // Except for the function, go over the macro body, and create sections
-        let mut sections = Vec::new();
+        let mut sections = Vec::<Section>::new();
         while !looks_like_fn_item(input) {
             // First get section name
             let section_name: syn::Ident = input.parse()?;
+
+            if sections.iter().any(|section| section.name == section_name) {
+                return Err(syn::Error::new_spanned(&section_name, error_msg::DUPLICATE_SECTION));
+            }
+
             input.parse::<Token![=>]>()?;
 
             // Extract the content in the section
@@ -96,7 +99,7 @@ impl Parse for MozartInput {
                 Some(kind) => kind,
                 None => {
                     return Err(syn::Error::new_spanned(
-                        section_name,
+                        &section_name,
                         error_msg::UNMAPPED_SECTION,
                     ));
                 }
@@ -170,7 +173,7 @@ fn get_function_from_stream(input: ParseStream) -> syn::Result<syn::ItemFn> {
     let function: syn::ItemFn = fork.parse()?;
 
     if !fork.is_empty() {
-        return Err(fork.error(UNEXPECTED_TOKENS_AFTER_FUNCTION));
+        return Err(fork.error(error_msg::UNEXPECTED_TOKENS_AFTER_FUNCTION));
     }
 
     Ok(function)
@@ -216,7 +219,7 @@ impl VariantMapping {
         T: ToTokens,
         U: Display,
     {
-        let err = syn::Error::new_spanned(tokens, message);
+        let err = syn::Error::new_spanned(&tokens, message);
         match &mut self.error {
             Some(existing) => existing.combine(err),
             None => self.error = Some(err),
@@ -265,14 +268,14 @@ fn compose(input: MozartInput) -> syn::Result<proc_macro2::TokenStream> {
 
     if !fn_sig.generics.params.is_empty() {
         return Err(syn::Error::new_spanned(
-            fn_sig.generics,
+            &fn_sig.generics,
             error_msg::UNSUPPORTED_GENERIC_FUNCTION,
         ));
     }
 
     if let Some(asyncness) = fn_sig.asyncness {
         return Err(syn::Error::new_spanned(
-            asyncness,
+            &asyncness,
             error_msg::UNSUPPORTED_ASYNC_FUNCTION,
         ));
     }
@@ -375,7 +378,7 @@ fn compose_accessor(
             .map(|arg| match arg {
                 syn::FnArg::Typed(pat_ty) => Ok(&pat_ty.ty),
                 syn::FnArg::Receiver(_) => {
-                    Err(syn::Error::new_spanned(arg, error_msg::UNSUPPORTED_METHOD))
+                    Err(syn::Error::new_spanned(&arg, error_msg::UNSUPPORTED_METHOD))
                 }
             })
             .collect::<syn::Result<Vec<_>>>()?;
@@ -410,7 +413,7 @@ impl<'a> EntryReplacer<'a> {
         T: ToTokens,
         U: Display,
     {
-        let err = syn::Error::new_spanned(tokens, message);
+        let err = syn::Error::new_spanned(&tokens, message);
         match &mut self.error {
             Some(existing) => existing.combine(err),
             None => self.error = Some(err),
@@ -553,6 +556,7 @@ impl<'a> VisitMut for EntryReplacer<'a> {
 }
 
 mod error_msg {
+    pub const DUPLICATE_SECTION: &str = "Variant section was declared before";
     pub const UNMAPPED_SECTION: &str =
         "Variant section was not referenced by any variant! placeholder in the function";
     pub const EXPECTED_FUNCTION_DECLARATION: &str =
