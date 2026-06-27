@@ -567,31 +567,31 @@ impl<'a> VisitMut for EntryReplacer<'a> {
 }
 
 mod error_msg {
-    pub const DUPLICATE_SECTION: &str = "Variant section was declared before";
-    pub const EMPTY_SECTION: &str = "Variant section is empty";
+    pub const DUPLICATE_SECTION: &str = "variant section was declared before";
+    pub const EMPTY_SECTION: &str = "variant section is empty";
     pub const UNMAPPED_SECTION: &str =
-        "Variant section was not referenced by any variant! placeholder in the function";
-    pub const DUPLICATE_VARIANT: &str = "Variant was declared before";
+        "variant section was not referenced by any variant! placeholder in the function";
+    pub const DUPLICATE_VARIANT: &str = "variant was declared before";
     pub const EXPECTED_FUNCTION_DECLARATION: &str =
         "expected a function declaration, perhaps you forgot ?";
     pub const UNEXPECTED_TOKENS_AFTER_FUNCTION: &str =
-        "Unexpected trailing tokens after function declaration. Try a diary instead";
+        "unexpected trailing tokens after function declaration. Try a diary instead";
     pub const VARIANT_NAME_TOKEN_MISMATCH: &str =
         "variant! placeholder must contain exactly one identifier";
     pub const VARIANT_USED_WITH_MULTIPLE_KINDS: &str =
-        "Variant group used with multiple placeholder kinds";
+        "variant group used with multiple placeholder kinds";
     pub const UNSUPPORTED_GENERIC_FUNCTION: &str =
         "mozart! does not support generic functions (including lifetime parameters)";
     pub const UNSUPPORTED_ASYNC_FUNCTION: &str = "mozart! does not support `async fn`";
     pub const UNSUPPORTED_METHOD: &str = "methods are not supported";
-    pub const UNKNOWN_EXPR_VARIANT_GROUP: &str = "Unknown variant group in expression position";
+    pub const UNKNOWN_EXPR_VARIANT_GROUP: &str = "unknown variant group in expression position";
     pub const TYPE_VARIANT_IN_EXPR_POSITION: &str = "variant!(name) with parentheses denotes a type group and cannot be used in expression position; use variant![name] instead";
     pub const BLOCK_PLACEHOLDER_KIND_MISMATCH: &str =
         "variant! block placeholder resolved to a non-block variant";
-    pub const UNKNOWN_TYPE_VARIANT_GROUP: &str = "Unknown variant group in type position";
+    pub const UNKNOWN_TYPE_VARIANT_GROUP: &str = "unknown variant group in type position";
     pub const NON_TYPE_VARIANT_IN_TYPE_POSITION: &str =
         "Only variant!(name) type placeholders can be used in type position";
-    pub const UNKNOWN_STMT_VARIANT_GROUP: &str = "Unknown variant group in statement position";
+    pub const UNKNOWN_STMT_VARIANT_GROUP: &str = "unknown variant group in statement position";
     pub const TYPE_VARIANT_IN_STMT_POSITION: &str =
         "variant!(name) type placeholder cannot be used in statement position";
 }
