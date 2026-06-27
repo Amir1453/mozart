@@ -97,6 +97,10 @@ impl Parse for MozartInput {
             let content;
             braced!(content in input);
 
+            if content.is_empty() {
+                return Err(content.error(error_msg::EMPTY_SECTION));
+            }
+
             // Get the VariantKind via the mapping
             let kind = match mapping.get(&section_name).copied() {
                 Some(kind) => kind,
@@ -564,6 +568,7 @@ impl<'a> VisitMut for EntryReplacer<'a> {
 
 mod error_msg {
     pub const DUPLICATE_SECTION: &str = "Variant section was declared before";
+    pub const EMPTY_SECTION: &str = "Variant section is empty";
     pub const UNMAPPED_SECTION: &str =
         "Variant section was not referenced by any variant! placeholder in the function";
     pub const DUPLICATE_VARIANT: &str = "Variant was declared before";
