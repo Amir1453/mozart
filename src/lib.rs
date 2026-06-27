@@ -85,7 +85,10 @@ impl Parse for MozartInput {
             let section_name: syn::Ident = input.parse()?;
 
             if sections.iter().any(|section| section.name == section_name) {
-                return Err(syn::Error::new_spanned(&section_name, error_msg::DUPLICATE_SECTION));
+                return Err(syn::Error::new_spanned(
+                    &section_name,
+                    error_msg::DUPLICATE_SECTION,
+                ));
             }
 
             input.parse::<Token![=>]>()?;
@@ -106,7 +109,7 @@ impl Parse for MozartInput {
             };
 
             // Start building the Variants, nameless variants are numerated
-            let mut variants = Vec::new();
+            let mut variants = Vec::<Variant>::new();
             let mut nameless_ident = 0u32;
 
             // Parse the content to build Variants, we either have named or nameless variants
@@ -133,6 +136,10 @@ impl Parse for MozartInput {
                 // Ignore commas
                 if content.peek(Token![,]) {
                     content.parse::<Token![,]>()?;
+                }
+
+                if variants.iter().any(|variant| variant.name == name) {
+                    return Err(syn::Error::new_spanned(&name, error_msg::DUPLICATE_VARIANT));
                 }
 
                 variants.push(Variant { name, ty });
@@ -559,6 +566,7 @@ mod error_msg {
     pub const DUPLICATE_SECTION: &str = "Variant section was declared before";
     pub const UNMAPPED_SECTION: &str =
         "Variant section was not referenced by any variant! placeholder in the function";
+    pub const DUPLICATE_VARIANT: &str = "Variant was declared before";
     pub const EXPECTED_FUNCTION_DECLARATION: &str =
         "expected a function declaration, perhaps you forgot ?";
     pub const UNEXPECTED_TOKENS_AFTER_FUNCTION: &str =
