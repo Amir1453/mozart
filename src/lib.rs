@@ -11,6 +11,8 @@ use syn::{
     visit_mut::VisitMut,
 };
 
+use crate::error_msg::UNEXPECTED_TOKENS_AFTER_FUNCTION;
+
 struct MozartInput {
     function: syn::ItemFn,
     sections: Vec<Section>,
@@ -166,6 +168,11 @@ fn get_function_from_stream(input: ParseStream) -> syn::Result<syn::ItemFn> {
     }
 
     let function: syn::ItemFn = fork.parse()?;
+
+    if !fork.is_empty() {
+        return Err(fork.error(UNEXPECTED_TOKENS_AFTER_FUNCTION));
+    }
+
     Ok(function)
 }
 
@@ -550,6 +557,8 @@ mod error_msg {
         "Variant section was not referenced by any variant! placeholder in the function";
     pub const EXPECTED_FUNCTION_DECLARATION: &str =
         "expected a function declaration, perhaps you forgot ?";
+    pub const UNEXPECTED_TOKENS_AFTER_FUNCTION: &str =
+        "Unexpected trailing tokens after function declaration. Try a diary instead";
     pub const VARIANT_NAME_TOKEN_MISMATCH: &str =
         "variant! placeholder must contain exactly one identifier";
     pub const VARIANT_USED_WITH_MULTIPLE_KINDS: &str =
