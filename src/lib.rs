@@ -276,20 +276,7 @@ fn compose(input: MozartInput) -> syn::Result<proc_macro2::TokenStream> {
     let combinations = cartesian_product(&input.sections);
 
     let fn_sig = input.function.sig.clone();
-
-    if !fn_sig.generics.params.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &fn_sig.generics,
-            error_msg::UNSUPPORTED_GENERIC_FUNCTION,
-        ));
-    }
-
-    if let Some(asyncness) = fn_sig.asyncness {
-        return Err(syn::Error::new_spanned(
-            &asyncness,
-            error_msg::UNSUPPORTED_ASYNC_FUNCTION,
-        ));
-    }
+    validate_signature(&fn_sig)?;
 
     let generated_fns = combinations
         .iter()
@@ -345,6 +332,85 @@ fn cartesian_product(sections: &[Section]) -> Vec<Combination<'_>> {
     rec(0, sections, &mut current, &mut out);
 
     out
+}
+
+fn validate_signature(fn_sig: &syn::Signature) -> syn::Result<()> {
+    let mut errors: Option<syn::Error> = None;
+
+    let mut add_error = |err| match &mut errors {
+        Some(existing) => existing.combine(err),
+        None => errors = Some(err),
+    };
+
+    // Check if function signature contains generic arguments
+    if !fn_sig.generics.params.is_empty() {
+        add_error(syn::Error::new_spanned(
+            &fn_sig.generics,
+            error_msg::UNSUPPORTED_GENERIC_FUNCTION,
+        ));
+    }
+
+    // Check if function signature contains asyncness
+    if let Some(asyncness) = &fn_sig.asyncness {
+        add_error(syn::Error::new_spanned(
+            &asyncness,
+            error_msg::UNSUPPORTED_ASYNC_FUNCTION,
+        ));
+    }
+
+    if let Some(abi) = &fn_sig.abi {
+        add_error(syn::Error::new_spanned(
+            &abi,
+            error_msg::UNSUPPORTED_ABI_ON_FUNCTION,
+        ));
+    }
+
+    // Check if function arguments contain self, impl trait, or trait objects
+    for arg in &fn_sig.inputs {
+        match arg {
+            syn::FnArg::Receiver(_) => {
+                add_error(syn::Error::new_spanned(&arg, error_msg::UNSUPPORTED_METHOD));
+            }
+
+            syn::FnArg::Typed(pat_type) => match pat_type.ty.as_ref() {
+                syn::Type::ImplTrait(_) => add_error(syn::Error::new_spanned(
+                    &pat_type,
+                    error_msg::UNSUPPORTED_TRAIT_IMPL_ARG,
+                )),
+
+                syn::Type::TraitObject(_) => add_error(syn::Error::new_spanned(
+                    &pat_type,
+                    error_msg::UNSUPPORTED_TRAIT_OBJ_ARG,
+                )),
+
+                _ => (),
+            },
+        }
+    }
+
+    // Check if function return contains impl trait, or trait objects
+    match &fn_sig.output {
+        syn::ReturnType::Type(_, ty) => match ty.as_ref() {
+            syn::Type::ImplTrait(_) => add_error(syn::Error::new_spanned(
+                &ty,
+                error_msg::UNSUPPORTED_TRAIT_IMPL_RET,
+            )),
+
+            syn::Type::TraitObject(_) => add_error(syn::Error::new_spanned(
+                &ty,
+                error_msg::UNSUPPORTED_TRAIT_OBJ_RET,
+            )),
+
+            _ => (),
+        },
+
+        _ => (),
+    }
+
+    match errors {
+        Some(err) => Err(err),
+        None => Ok(()),
+    }
 }
 
 fn compose_function(function: &syn::ItemFn, combination: &Combination) -> syn::Result<syn::ItemFn> {
@@ -571,26 +637,41 @@ mod error_msg {
     pub const EMPTY_SECTION: &str = "variant section is empty";
     pub const UNMAPPED_SECTION: &str =
         "variant section was not referenced by any variant! placeholder in the function";
+
     pub const DUPLICATE_VARIANT: &str = "variant was declared before";
+
     pub const EXPECTED_FUNCTION_DECLARATION: &str =
         "expected a function declaration, perhaps you forgot ?";
     pub const UNEXPECTED_TOKENS_AFTER_FUNCTION: &str =
         "unexpected trailing tokens after function declaration. Try a diary instead";
+
     pub const VARIANT_NAME_TOKEN_MISMATCH: &str =
         "variant! placeholder must contain exactly one identifier";
     pub const VARIANT_USED_WITH_MULTIPLE_KINDS: &str =
         "variant group used with multiple placeholder kinds";
+
     pub const UNSUPPORTED_GENERIC_FUNCTION: &str =
         "mozart! does not support generic functions (including lifetime parameters)";
     pub const UNSUPPORTED_ASYNC_FUNCTION: &str = "mozart! does not support `async fn`";
+    pub const UNSUPPORTED_ABI_ON_FUNCTION: &str = "mozart! does not support `extern \"C\" fn`";
     pub const UNSUPPORTED_METHOD: &str = "methods are not supported";
+    pub const UNSUPPORTED_TRAIT_IMPL_ARG: &str =
+        "trait impl are not supported in function arguments";
+    pub const UNSUPPORTED_TRAIT_OBJ_ARG: &str =
+        "trait objects are not supported in function arguments";
+    pub const UNSUPPORTED_TRAIT_IMPL_RET: &str = "trait impl are not supported in function return";
+    pub const UNSUPPORTED_TRAIT_OBJ_RET: &str =
+        "trait objects are not supported in function return";
+
     pub const UNKNOWN_EXPR_VARIANT_GROUP: &str = "unknown variant group in expression position";
     pub const TYPE_VARIANT_IN_EXPR_POSITION: &str = "variant!(name) with parentheses denotes a type group and cannot be used in expression position; use variant![name] instead";
     pub const BLOCK_PLACEHOLDER_KIND_MISMATCH: &str =
         "variant! block placeholder resolved to a non-block variant";
+
     pub const UNKNOWN_TYPE_VARIANT_GROUP: &str = "unknown variant group in type position";
     pub const NON_TYPE_VARIANT_IN_TYPE_POSITION: &str =
         "Only variant!(name) type placeholders can be used in type position";
+
     pub const UNKNOWN_STMT_VARIANT_GROUP: &str = "unknown variant group in statement position";
     pub const TYPE_VARIANT_IN_STMT_POSITION: &str =
         "variant!(name) type placeholder cannot be used in statement position";
